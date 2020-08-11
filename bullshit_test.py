@@ -11,11 +11,11 @@ non_network = 0
 
 
 async def get_html(url: str, session: aiohttp.ClientSession) -> str:
-	try:
-		async with session.get(url) as response:
-			return await response.text()
-	except aiohttp.client_exceptions.ClientPayloadError:
-		print(url)
+    try:
+        async with session.get(url) as response:
+            return await response.text()
+    except aiohttp.client_exceptions.ClientPayloadError:
+        return url
 
 
 async def find_links(raw_html: str) -> list:
@@ -79,26 +79,26 @@ async def process_one_url(source: str, ancestors: list, session: aiohttp.ClientS
 async def main(source: str, goal: str):
     q = asyncio.Queue()
     storage.add(source)
+    session = await aiohttp.ClientSession()
     await q.put((source, []))
     goal_title = get_title(await get_html(goal, session))
     i = 0
     j = 0
+    await session.close()
     while True:
         try:
-		session = await aiohttp.ClientSession()
-                z = min(512, q.qsize())
-                coros1 = (q.get() for i in range(z))
-                links = await asyncio.gather(*coros1)
-                coros = (process_one_url(
-                    x[0], x[1], session, goal, q, goal_title) for x in links
-                )
-                await asyncio.gather(*coros)
-                i += 1
-                j += z
-		await session.close()
-                if i % 10 == 0:
-                    print(f'We have checked {j} links, nothing found {i}.')
-            except asyncio.exceptions.CancelledError as e:
+            session = await aiohttp.ClientSession()
+            z = min(512, q.qsize())
+            coros1 = (q.get() for i in range(z))
+            links = await asyncio.gather(*coros1)
+            coros = (process_one_url(x[0], x[1], session, goal, q, goal_title) for x in links)
+            await asyncio.gather(*coros)
+            i += 1
+            j += z
+            await session.close()
+            if i % 10 == 0:
+                print(f'We have checked {j} links, nothing found {i}.')
+        except asyncio.exceptions.CancelledError as e:
                 print('Result found!')
                 break
 
