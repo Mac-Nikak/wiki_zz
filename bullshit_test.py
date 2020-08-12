@@ -76,27 +76,31 @@ async def process_one_url(source: str, ancestors: list, session: aiohttp.ClientS
 async def main(source: str, goal: str):
     q = asyncio.Queue()
     storage.add(source)
-    async with aiohttp.ClientSession() as session:
-        await q.put((source, []))
-        goal_title = get_title(await get_html(goal, session))
-        i = 0
-        j = 0
-        while True:
-            try:
-                z = min(256, q.qsize())
-                coros1 = (q.get() for i in range(z))
-                links = await asyncio.gather(*coros1)
-                coros = (process_one_url(
-                    x[0], x[1], session, goal, q, goal_title) for x in links
-                )
-                await asyncio.gather(*coros)
-                i += 1
-                j += z
-                if i % 10 == 0:
-                    print(f'We have checked {j} links, nothing found {i}.')
-            except asyncio.exceptions.CancelledError as e:
-                print('Result found!')
-                break
+    session = aiohttp.ClientSession()
+    await q.put((source, []))
+    goal_title = get_title(await get_html(goal, session))
+    i = 0
+    j = 0
+    while True:
+        try:
+            z = min(256, q.qsize())
+            coros1 = (q.get() for i in range(z))
+            links = await asyncio.gather(*coros1)
+            coros = (process_one_url(
+                x[0], x[1], session, goal, q, goal_title) for x in links
+            )
+            await asyncio.gather(*coros)
+            i += 1
+            if i == 2:
+                await session.close()
+                session = aiohttp.ClientSession()
+            print(i)
+            j += z
+            if i % 10 == 0:
+                print(f'We have checked {j} links, nothing found {i}.')
+        except asyncio.exceptions.CancelledError as e:
+            print('Result found!')
+            break
 
 source = 'https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%BE_(%D0%BC%D0%B0%D1%82%D0%B5%D0%BC%D0%B0%D1%82%D0%B8%D0%BA%D0%B0)'
 goal = 'https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%BE_%D0%B2_%D1%84%D0%B8%D0%B7%D0%B8%D0%BA%D0%B5'
