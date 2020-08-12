@@ -1,11 +1,12 @@
 import aiohttp
 import asyncio
 import re
+import time
 
 main_page = {'https://ru.wikipedia.org/wiki/%D0%97%D0%B0%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80'
              '%D0%B0%D0%BD%D0%B8%D1%86%D0%B0', 'https://ru.wikipedia.org/wiki/'}
 file = open('html.txt', 'w')
-storage = set()
+#storage = set()
 network = 0
 non_network = 0
 
@@ -27,7 +28,8 @@ async def find_links(raw_html: str) -> list:
     links = ('https://ru.wikipedia.org' + link for link in raw_links
              if link[0:5] == '/wiki' and link.find(':') == -1
              and 'https://ru.wikipedia.org' + link not in main_page
-             and 'https://ru.wikipedia.org' + link not in storage)
+             #and 'https://ru.wikipedia.org' + link not in storage
+	)
     return list(links)
 
 
@@ -40,7 +42,7 @@ async def check_if_in2(goal_html: str, link_html: str, goal: str, q: asyncio.Que
         new_ancestors.append(source)
         for link in links:
             await q.put((link, new_ancestors))
-            storage.add(link)
+            #storage.add(link)
         return False
 
 
@@ -55,7 +57,7 @@ async def check_if_in3(goal_title: str, link_html: str, goal: str, q: asyncio.Qu
         new_ancestors.append(source)
         for link in links:
             await q.put((link, new_ancestors))
-            storage.add(link)
+            #storage.add(link)
         return False
 
 def get_title(html: str):
@@ -81,7 +83,7 @@ async def process_one_url(source: str, ancestors: list, session: aiohttp.ClientS
 
 async def main(source: str, goal: str):
     q = asyncio.Queue()
-    storage.add(source)
+    #storage.add(source)
     async with aiohttp.ClientSession() as session:
         await q.put((source, []))
         goal_title = get_title(await get_html(goal, session))
@@ -89,6 +91,7 @@ async def main(source: str, goal: str):
         j = 0
         while True:
             try:
+                start = time.time()
                 z = min(256, q.qsize())
                 coros1 = (q.get() for i in range(z))
                 links = await asyncio.gather(*coros1)
@@ -99,8 +102,8 @@ async def main(source: str, goal: str):
                 i += 1
                 j += z
 
-                if i % 10 == 0:
-                    print(f'We have checked {j} links, nothing found {i}.')
+                if i % 1 == 0:
+                    print(f'We have checked {j} links, nothing found {i}, process ended in {time.time()-start} seconds.')
             except asyncio.exceptions.CancelledError as e:
                 print('Result found!')
                 break
