@@ -11,8 +11,14 @@ non_network = 0
 
 
 async def get_html(url: str, session: aiohttp.ClientSession) -> str:
+    try:
         async with session.get(url) as response:
-            return await response.text()
+            l = await response.text()
+            response.close()
+            return l
+    except aiohttp.ClientPayloadError:
+        response.close()
+        return ''
 
 
 async def find_links(raw_html: str) -> list:
